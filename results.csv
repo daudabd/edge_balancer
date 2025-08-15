@@ -1,0 +1,2 @@
+nodes,tasks,scheduler,throughput,energy_used,fairness
+5,20,greedy,0.75,40,0.975609756097561
