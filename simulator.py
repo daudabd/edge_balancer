@@ -86,33 +86,33 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     import copy
-    from schedulers import greedy_scheduler
+    from schedulers import greedy_scheduler, ilp_scheduler
     from metrics import throughput, energy_used, jain_fairness, log_to_csv
 
-    # 1) build a synthetic scenario
-    nodes  = random_nodes(5, seed=1)
-    tasks  = random_tasks(20, seed=1)
-    before = copy.deepcopy(nodes)        # snapshot battery before scheduling
+    # Build identical starting state for both schedulers
+    nodes_g = random_nodes(5, seed=2)
+    tasks   = random_tasks(30, seed=2)
+    before  = copy.deepcopy(nodes_g)
 
-    # 2) run the (simple) greedy scheduler
-    assignments = greedy_scheduler(nodes, tasks)
+    # --- Greedy ---
+    asg_g = greedy_scheduler(nodes_g, tasks)
+    tp_g  = throughput(asg_g, len(tasks))
+    en_g  = energy_used(before, nodes_g)
+    per_node_energy_g = [b.battery - a.battery for b, a in zip(before, nodes_g)]
+    fair_g = jain_fairness(per_node_energy_g)
+    print(f"[Greedy] Placed: {len(asg_g)}/{len(tasks)}  Throughput: {tp_g:.0%}  Energy: {en_g}  Fairness: {fair_g:.2f}")
+    log_to_csv("results.csv", dict(nodes=len(nodes_g), tasks=len(tasks),
+                                   scheduler="greedy", throughput=tp_g,
+                                   energy_used=en_g, fairness=fair_g))
 
-    # 3) compute metrics
-    tp   = throughput(assignments, len(tasks))
-    energ = energy_used(before, nodes)
-    per_node_energy = [b.battery - a.battery for b, a in zip(before, nodes)]
-    fair = jain_fairness(per_node_energy)
-
-    # 4) print results for quick feedback
-    print(f"Placed: {len(assignments)}/{len(tasks)}  "
-          f"Throughput: {tp:.0%}  "
-          f"Energy used: {energ}  "
-          f"Fairness: {fair:.2f}")
-
-    # 5) also save to CSV for later analysis
-    log_to_csv(
-        "results.csv",
-        dict(nodes=len(nodes), tasks=len(tasks),
-             scheduler="greedy", throughput=tp,
-             energy_used=energ, fairness=fair)
-    )
+    # --- ILP (fresh copy of pre-schedule state) ---
+    nodes_i = copy.deepcopy(before)
+    asg_i = ilp_scheduler(nodes_i, tasks, alpha=0.8)
+    tp_i  = throughput(asg_i, len(tasks))
+    en_i  = energy_used(before, nodes_i)
+    per_node_energy_i = [b.battery - a.battery for b, a in zip(before, nodes_i)]
+    fair_i = jain_fairness(per_node_energy_i)
+    print(f"[ILP   ] Placed: {len(asg_i)}/{len(tasks)}  Throughput: {tp_i:.0%}  Energy: {en_i}  Fairness: {fair_i:.2f}")
+    log_to_csv("results.csv", dict(nodes=len(nodes_i), tasks=len(tasks),
+                                   scheduler="ilp", throughput=tp_i,
+                                   energy_used=en_i, fairness=fair_i))
